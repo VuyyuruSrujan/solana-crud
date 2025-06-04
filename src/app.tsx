@@ -72,7 +72,7 @@ const LazyDashboard = lazy(() => import('@/components/dashboard/dashboard-featur
 const links = [
   { label: 'Home', path: '/' },
   { label: 'Account', path: '/account' },
-  { label: 'Crud application', path: '/counter' },
+  { label: 'Create Entry', path: '/counter' },
 ];
 
 const routes: RouteObject[] = [
