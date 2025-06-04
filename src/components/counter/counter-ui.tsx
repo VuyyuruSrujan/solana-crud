@@ -1,14 +1,25 @@
 import { Keypair, PublicKey } from '@solana/web3.js'
-import { useMemo } from 'react'
+// import { useMemo } from 'react'
 import { ExplorerLink } from '@/components/cluster/cluster-ui'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { ellipsify } from '@/lib/utils'
 import { useCounterProgram, useCounterProgramAccount } from './counter-data-access'
+import { useState } from 'react'
+import { useWallet } from '@solana/wallet-adapter-react'
 
-export function CounterCreate() {
-  const { initialize } = useCounterProgram()
+  
+  const [title, setTitle] = useState('')
+  const [message, setMessage] = useState('')
+  const { createEntry } = useCounterProgram();
+  const {publicKey} = useWallet();
 
+  const isFormValid = title.trim() !== '' && message.trim()!== '';
+
+  const handleCreateEntry = () => {
+    if(publicKey && isFormValid) {
+      createEntry.mutateAsync({ title, message, owner: publicKey });
+  }
   return (
     <Button onClick={() => initialize.mutateAsync(Keypair.generate())} disabled={initialize.isPending}>
       Create {initialize.isPending && '...'}

@@ -8,6 +8,13 @@ import { useAnchorProvider } from '@/components/solana/use-anchor-provider'
 import { useTransactionToast } from '@/components/use-transaction-toast'
 import { toast } from 'sonner'
 
+
+interface CreateEntryArgs {
+  title: string;
+  message: string;
+  owner:PublicKey;
+}
+
 export function useCounterProgram() {
   const { connection } = useConnection()
   const { cluster } = useCluster()
@@ -18,7 +25,7 @@ export function useCounterProgram() {
 
   const accounts = useQuery({
     queryKey: ['counter', 'all', { cluster }],
-    queryFn: () => program.account.counter.all(),
+    queryFn: () => program.account.journalEntryState.all(),
   })
 
   const getProgramAccount = useQuery({
@@ -26,24 +33,27 @@ export function useCounterProgram() {
     queryFn: () => connection.getParsedAccountInfo(programId),
   })
 
-  const initialize = useMutation({
-    mutationKey: ['counter', 'initialize', { cluster }],
-    mutationFn: (keypair: Keypair) =>
-      program.methods.initialize().accounts({ counter: keypair.publicKey }).signers([keypair]).rpc(),
-    onSuccess: (signature) => {
-      transactionToast(signature)
-      return accounts.refetch()
-    },
-    onError: () => toast.error('Failed to initialize account'),
-  })
+  const createEntry = useMutation<string, Error, CreateEntryArgs>({
+    mutationKey: ['journalEntry', 'create', { cluster }],
+    mutationFn: async ({ title, message, owner }) => {
+     return program.methods
+        .createJournalEntry(title, message).rpc();
+  },
+  onSuccess: (signature) => {
+    transactionToast(signature);
+    accounts.refetch();
+  },
+  onError: (error) => {
+    toast.error(`Error creating journal entry: ${error.message}`);
+  },
+  });
 
   return {
     program,
-    programId,
     accounts,
     getProgramAccount,
-    initialize,
-  }
+    createEntry,
+  };
 }
 
 export function useCounterProgramAccount({ account }: { account: PublicKey }) {
@@ -53,50 +63,45 @@ export function useCounterProgramAccount({ account }: { account: PublicKey }) {
 
   const accountQuery = useQuery({
     queryKey: ['counter', 'fetch', { cluster, account }],
-    queryFn: () => program.account.counter.fetch(account),
+    queryFn: () => program.account.journalEntryState.fetch(account),
   })
 
-  const closeMutation = useMutation({
-    mutationKey: ['counter', 'close', { cluster, account }],
-    mutationFn: () => program.methods.close().accounts({ counter: account }).rpc(),
-    onSuccess: (tx) => {
-      transactionToast(tx)
-      return accounts.refetch()
+  // const createEntry = useMutation<String , Error , CreateEntryArgs>
+
+  // return {
+  //   accountQuery,
+  //   decrementMutation,
+  // }
+
+  const updateEntry = useMutation<string, Error, CreateEntryArgs>({
+    mutationKey: ['journalEntry', 'update', { cluster }],
+    mutationFn: async ({ title, message }) => {
+      return program.methods
+        .updateJournalEntry(title, message).rpc();
     },
-  })
-
-  const decrementMutation = useMutation({
-    mutationKey: ['counter', 'decrement', { cluster, account }],
-    mutationFn: () => program.methods.decrement().accounts({ counter: account }).rpc(),
-    onSuccess: (tx) => {
-      transactionToast(tx)
-      return accountQuery.refetch()
+    onSuccess: (signature) => {
+      transactionToast(signature);
+      accounts.refetch();
     },
-  })
-
-  const incrementMutation = useMutation({
-    mutationKey: ['counter', 'increment', { cluster, account }],
-    mutationFn: () => program.methods.increment().accounts({ counter: account }).rpc(),
-    onSuccess: (tx) => {
-      transactionToast(tx)
-      return accountQuery.refetch()
+    onError: (error) => {
+      toast.error(`Error updating journal entry: ${error.message}`);
     },
-  })
+  });
 
-  const setMutation = useMutation({
-    mutationKey: ['counter', 'set', { cluster, account }],
-    mutationFn: (value: number) => program.methods.set(value).accounts({ counter: account }).rpc(),
-    onSuccess: (tx) => {
-      transactionToast(tx)
-      return accountQuery.refetch()
+  const deleteEntry = useMutation({
+    mutationKey: ['journalEntry', 'delete', { cluster }],
+    mutationFn: ( title :string) => {
+      return program.methods
+        .deleteJournalEntry(title).rpc();
     },
-  })
-
+    onSuccess: (signature) => {
+      transactionToast(signature);
+      accounts.refetch();
+    },
+  });
   return {
     accountQuery,
-    closeMutation,
-    decrementMutation,
-    incrementMutation,
-    setMutation,
-  }
+    updateEntry,
+    deleteEntry,
+  };
 }
